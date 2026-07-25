@@ -1,0 +1,43 @@
+name: build
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Unpack bundle
+        run: |
+          mkdir -p src
+          unzip -o bundle.zip -d src
+          ls -R src | head -60
+
+      - name: XcodeGen
+        run: |
+          brew install xcodegen
+          cd src && xcodegen generate
+
+      - name: Build
+        run: |
+          cd src
+          xcodebuild -project TrainSim.xcodeproj \
+            -scheme TrainSim \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Package IPA
+        run: |
+          cd src
+          mkdir -p Payload
+          cp -r build/Build/Products/Release-iphoneos/TrainSim.app Payload/
+          zip -qry ../TrainSim.ipa Payload
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TrainSim-ipa
+          path: TrainSim.ipa
